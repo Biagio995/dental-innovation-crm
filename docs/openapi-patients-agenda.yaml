@@ -1,0 +1,897 @@
+openapi: 3.1.0
+info:
+  title: Dental Innovation CRM - Patients & Agenda API
+  version: 1.0.0
+  description: |
+    Patients and Appointments (Agenda) management endpoints for the Dental Innovation CRM.
+    
+    ## Authentication
+    All endpoints require session-based authentication with HTTP-only cookies (Laravel Sanctum SPA mode).
+    See `openapi-auth.yaml` for authentication flow.
+    
+    ## Role-Based Access
+    - **owner/admin**: Full CRUD including delete
+    - **operator**: Create, Read, Update only (no delete)
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: http://localhost:5173
+    description: Vite dev server (SPA)
+
+paths:
+  /api/patients:
+    get:
+      summary: List patients
+      description: |
+        Returns a paginated list of patients. Supports filtering by status and search.
+      operationId: listPatients
+      tags:
+        - Patients
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by patient status
+          schema:
+            type: string
+            enum: [active, inactive, archived]
+        - name: search
+          in: query
+          description: Search in first_name, last_name, email, phone
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Results per page (default 15)
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Paginated list of patients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Patient'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+    post:
+      summary: Create patient
+      description: Creates a new patient record. Audits the creation event.
+      operationId: createPatient
+      tags:
+        - Patients
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientCreate'
+      responses:
+        '201':
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/patients/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get patient
+      description: Returns a single patient by ID.
+      operationId: getPatient
+      tags:
+        - Patients
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update patient
+      description: |
+        Updates an existing patient. Audits sensitive field changes 
+        (email, phone, consents, status).
+      operationId: updatePatient
+      tags:
+        - Patients
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdate'
+      responses:
+        '200':
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete patient
+      description: |
+        Soft-deletes a patient. Audits the deletion event.
+        **Requires owner or admin role.** Operators receive 403 Forbidden.
+      operationId: deletePatient
+      tags:
+        - Patients
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Patient deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/appointments:
+    get:
+      summary: List appointments
+      description: |
+        Returns a paginated list of appointments (agenda). 
+        Supports filtering by patient, status, date, and date range.
+      operationId: listAppointments
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: patient_id
+          in: query
+          description: Filter by patient ID
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Filter by appointment status
+          schema:
+            type: string
+            enum: [scheduled, confirmed, cancelled, no_show, completed]
+        - name: date
+          in: query
+          description: Filter by exact date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: from
+          in: query
+          description: Filter appointments starting from this datetime
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Filter appointments up to this datetime
+          schema:
+            type: string
+            format: date-time
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Paginated list of appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+    post:
+      summary: Create appointment
+      description: Creates a new appointment with status "scheduled". Audits the creation.
+      operationId: createAppointment
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreate'
+      responses:
+        '201':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/appointments/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get appointment
+      description: Returns a single appointment with patient and visit (if any).
+      operationId: getAppointment
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update appointment
+      description: |
+        Updates an existing appointment. Cannot update appointments 
+        with final status (completed, cancelled, no_show).
+      operationId: updateAppointment
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentUpdate'
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete appointment
+      description: |
+        Soft-deletes an appointment. Audits the deletion.
+        **Requires owner or admin role.** Operators receive 403 Forbidden.
+      operationId: deleteAppointment
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Appointment deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/appointments/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      summary: Update appointment status
+      description: |
+        Changes the appointment status. Audits the status transition.
+        Cannot transition from a final status (completed, cancelled, no_show).
+      operationId: updateAppointmentStatus
+      tags:
+        - Appointments
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [scheduled, confirmed, cancelled, no_show, completed]
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/appointments/{id}/complete:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      summary: Complete visit
+      description: |
+        Marks the appointment as completed and creates a visit record.
+        Optionally sets a recommended recall date (foundation for future recalls module).
+        Cannot complete cancelled or no-show appointments.
+      operationId: completeVisit
+      tags:
+        - Visits
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitComplete'
+      responses:
+        '201':
+          description: Visit created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Visit'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/visits:
+    get:
+      summary: List visits
+      description: Returns a paginated list of completed visits.
+      operationId: listVisits
+      tags:
+        - Visits
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: patient_id
+          in: query
+          description: Filter by patient ID
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Paginated list of visits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Visit'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/visits/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get visit
+      description: Returns a single visit by ID.
+      operationId: getVisit
+      tags:
+        - Visits
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Visit details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Visit'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: dental_innovation_crm_session
+      description: Session cookie set by the login endpoint
+
+  schemas:
+    Patient:
+      type: object
+      required:
+        - id
+        - first_name
+        - last_name
+        - full_name
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          description: Computed from first_name + last_name
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        consents:
+          $ref: '#/components/schemas/Consents'
+        status:
+          type: string
+          enum: [active, inactive, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PatientCreate:
+      type: object
+      required:
+        - first_name
+        - last_name
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 30
+        date_of_birth:
+          type: string
+          format: date
+          description: Must be in the past
+        notes:
+          type: string
+          maxLength: 10000
+        consents:
+          $ref: '#/components/schemas/Consents'
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          default: active
+
+    PatientUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          maxLength: 10000
+          nullable: true
+        consents:
+          $ref: '#/components/schemas/Consents'
+        status:
+          type: string
+          enum: [active, inactive, archived]
+
+    Consents:
+      type: object
+      nullable: true
+      properties:
+        marketing:
+          type: boolean
+          description: Marketing communications consent
+        data_processing:
+          type: boolean
+          description: Data processing consent (GDPR)
+        medical_records:
+          type: boolean
+          description: Medical records sharing consent
+
+    Appointment:
+      type: object
+      required:
+        - id
+        - patient_id
+        - scheduled_at
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        patient_id:
+          type: integer
+          format: int64
+        patient:
+          $ref: '#/components/schemas/Patient'
+        scheduled_at:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+          default: 30
+        type:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: checkup
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [scheduled, confirmed, cancelled, no_show, completed]
+        visit:
+          $ref: '#/components/schemas/Visit'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AppointmentCreate:
+      type: object
+      required:
+        - patient_id
+        - scheduled_at
+      properties:
+        patient_id:
+          type: integer
+          format: int64
+        scheduled_at:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+          minimum: 5
+          maximum: 480
+          default: 30
+        type:
+          type: string
+          maxLength: 100
+        notes:
+          type: string
+          maxLength: 10000
+
+    AppointmentUpdate:
+      type: object
+      properties:
+        patient_id:
+          type: integer
+          format: int64
+        scheduled_at:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+          minimum: 5
+          maximum: 480
+        type:
+          type: string
+          maxLength: 100
+          nullable: true
+        notes:
+          type: string
+          maxLength: 10000
+          nullable: true
+
+    Visit:
+      type: object
+      required:
+        - id
+        - appointment_id
+        - patient_id
+      properties:
+        id:
+          type: integer
+          format: int64
+        appointment_id:
+          type: integer
+          format: int64
+        patient_id:
+          type: integer
+          format: int64
+        treatment_notes:
+          type: string
+          nullable: true
+        recommended_recall_date:
+          type: string
+          format: date
+          nullable: true
+          description: Foundation for future recalls module
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    VisitComplete:
+      type: object
+      properties:
+        treatment_notes:
+          type: string
+          maxLength: 10000
+        recommended_recall_date:
+          type: string
+          format: date
+          description: Must be in the future
+
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          type: string
+          format: uri
+        last:
+          type: string
+          format: uri
+        prev:
+          type: string
+          format: uri
+          nullable: true
+        next:
+          type: string
+          format: uri
+          nullable: true
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        path:
+          type: string
+          format: uri
+        per_page:
+          type: integer
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    UnauthenticatedError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Unauthenticated.
+
+    ForbiddenError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: This action is unauthorized.
+
+    NotFoundError:
+      type: object
+      properties:
+        message:
+          type: string
+
+  responses:
+    Unauthenticated:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthenticatedError'
+    Forbidden:
+      description: Not authorized (operators cannot delete)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ForbiddenError'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+tags:
+  - name: Patients
+    description: Patient management (anagrafica)
+  - name: Appointments
+    description: Appointment scheduling (agenda)
+  - name: Visits
+    description: Completed visits and recall dates

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PatientStatus;
 use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,6 +20,26 @@ class PatientFactory extends Factory
             'phone' => fake()->phoneNumber(),
             'date_of_birth' => fake()->date(),
             'notes' => fake()->optional()->sentence(),
+            'consents' => [
+                'marketing' => fake()->boolean(),
+                'data_processing' => true,
+                'medical_records' => true,
+            ],
+            'status' => PatientStatus::Active,
         ];
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => PatientStatus::Inactive,
+        ]);
+    }
+
+    public function archived(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => PatientStatus::Archived,
+        ]);
     }
 }

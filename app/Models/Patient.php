@@ -42,8 +42,31 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
+    public function recallTasks(): HasMany
+    {
+        return $this->hasMany(RecallTask::class);
+    }
+
+    public function communicationLogs(): HasMany
+    {
+        return $this->hasMany(CommunicationLog::class);
+    }
+
+    public function scheduledReminders(): HasMany
+    {
+        return $this->hasMany(ScheduledReminder::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    public function getLatestRecallDateAttribute(): ?\Carbon\Carbon
+    {
+        return $this->visits()
+            ->whereNotNull('recommended_recall_date')
+            ->orderByDesc('recommended_recall_date')
+            ->value('recommended_recall_date');
     }
 }

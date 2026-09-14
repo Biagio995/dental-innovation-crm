@@ -1,0 +1,186 @@
+openapi: 3.1.0
+info:
+  title: Dental Innovation CRM - Authentication API
+  version: 1.0.0
+  description: |
+    Authentication endpoints for the Dental Innovation CRM.
+    
+    ## Authentication
+    This API uses session-based authentication with HTTP-only cookies (Laravel Sanctum SPA mode).
+    
+    ### Flow
+    1. Call `POST /api/login` with credentials
+    2. On success (204), a session cookie is set
+    3. Include the cookie in subsequent requests
+    4. Call `POST /api/logout` to invalidate the session
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: http://localhost:5173
+    description: Vite dev server (SPA)
+
+paths:
+  /api/login:
+    post:
+      summary: Authenticate user
+      description: |
+        Authenticates a user with email and password.
+        On success, sets an HTTP-only session cookie.
+        Rate-limited to 5 attempts per email+IP combination.
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@dental.local
+                password:
+                  type: string
+                  format: password
+                  example: ChangeMe!Admin1
+                remember:
+                  type: boolean
+                  default: false
+                  description: Whether to extend session duration
+      responses:
+        '204':
+          description: Authentication successful. Session cookie set.
+          headers:
+            Set-Cookie:
+              description: HTTP-only session cookie
+              schema:
+                type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '422':
+          description: Validation error or rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/logout:
+    post:
+      summary: Logout user
+      description: |
+        Invalidates the current session and clears the session cookie.
+        Requires authentication.
+      operationId: logout
+      tags:
+        - Authentication
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Logout successful. Session invalidated.
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthenticatedError'
+
+  /api/me:
+    get:
+      summary: Get current user
+      description: Returns the currently authenticated user's profile.
+      operationId: getCurrentUser
+      tags:
+        - Authentication
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthenticatedError'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: dental_innovation_crm_session
+      description: Session cookie set by the login endpoint
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Admin User
+        email:
+          type: string
+          format: email
+          example: admin@dental.local
+        role:
+          type: string
+          enum:
+            - owner
+            - admin
+            - operator
+          description: |
+            User role determining permissions:
+            - **owner**: Full access, can delete patients/appointments, manage users
+            - **admin**: Can delete patients/appointments, limited admin functions
+            - **operator**: Limited CRUD, cannot delete patients/appointments
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The email field must be a valid email address.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - These credentials do not match our records.
+
+    UnauthenticatedError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Unauthenticated.
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints

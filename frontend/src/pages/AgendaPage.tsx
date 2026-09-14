@@ -161,6 +161,12 @@ export function AgendaPage() {
       setDeleteAppointment(null)
       loadAppointments()
     } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err.message)
+      } else {
+        setError('Errore durante l\'eliminazione dell\'appuntamento')
+      }
+      setDeleteAppointment(null)
       console.error('Failed to delete appointment:', err)
     } finally {
       setIsDeleting(false)

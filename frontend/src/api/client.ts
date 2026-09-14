@@ -49,6 +49,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       if (response.status === 401) {
         message = 'Sessione scaduta o credenziali non valide'
+      } else if (response.status === 403) {
+        message = 'Non hai i permessi per eseguire questa azione'
       } else if (response.status === 422) {
         message = 'Dati non validi'
       } else if (response.status === 429) {

@@ -116,6 +116,12 @@ export function PazientiPage() {
       setDeletePatient(null)
       loadPatients()
     } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err.message)
+      } else {
+        setError('Errore durante l\'eliminazione del paziente')
+      }
+      setDeletePatient(null)
       console.error('Failed to delete patient:', err)
     } finally {
       setIsDeleting(false)

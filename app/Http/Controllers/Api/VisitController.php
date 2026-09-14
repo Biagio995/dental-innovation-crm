@@ -20,6 +20,8 @@ class VisitController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        Gate::authorize('viewAny', Visit::class);
+
         $query = Visit::with(['patient', 'appointment']);
 
         if ($request->has('patient_id')) {
@@ -34,6 +36,8 @@ class VisitController extends Controller
 
     public function show(Visit $visit): VisitResource
     {
+        Gate::authorize('view', $visit);
+
         return new VisitResource($visit);
     }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -9,53 +10,55 @@ import {
   Loader2,
   Phone,
   PhoneCall,
+  RefreshCw,
   Search,
   User,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { RecallOutcomeDialog } from '@/components/RecallOutcomeDialog'
 import * as recallsApi from '@/api/recalls'
-import type { Recall, RecallStatus, RecallOutcome } from '@/types/recall'
-import { RECALL_STATUS_LABELS, RECALL_OUTCOME_LABELS } from '@/types/recall'
+import type { RecallTask, RecallStatus, ContactOutcomeType } from '@/types/recall'
+import { RECALL_STATUS_LABELS } from '@/types/recall'
 import { ApiRequestError } from '@/api/client'
 
 export function RichiamiPage() {
-  const [recalls, setRecalls] = useState<Recall[]>([])
+  const [recalls, setRecalls] = useState<RecallTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<RecallStatus | ''>('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [daysAhead, setDaysAhead] = useState(7)
+  const [overdueOnly, setOverdueOnly] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalRecalls, setTotalRecalls] = useState(0)
 
-  const [outcomeRecall, setOutcomeRecall] = useState<Recall | null>(null)
+  const [outcomeRecall, setOutcomeRecall] = useState<RecallTask | null>(null)
   const [isSubmittingOutcome, setIsSubmittingOutcome] = useState(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery)
-      setCurrentPage(1)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+  const [useQueueMode, setUseQueueMode] = useState(true)
 
   function handleStatusFilterChange(status: RecallStatus | '') {
     setStatusFilter(status)
     setCurrentPage(1)
+    if (status) {
+      setUseQueueMode(false)
+    }
   }
 
-  function handleDateFromChange(date: string) {
-    setDateFrom(date)
+  function handleDaysAheadChange(days: number) {
+    setDaysAhead(days)
     setCurrentPage(1)
+    setUseQueueMode(true)
+    setStatusFilter('')
+    setOverdueOnly(false)
   }
 
-  function handleDateToChange(date: string) {
-    setDateTo(date)
+  function handleOverdueOnlyChange(checked: boolean) {
+    setOverdueOnly(checked)
     setCurrentPage(1)
+    if (checked) {
+      setUseQueueMode(false)
+    }
   }
 
   const loadRecalls = useCallback(async () => {
@@ -63,14 +66,21 @@ export function RichiamiPage() {
     setError(null)
 
     try {
-      const response = await recallsApi.getRecalls({
-        status: statusFilter || undefined,
-        from: dateFrom || undefined,
-        to: dateTo || undefined,
-        search: debouncedSearch || undefined,
-        page: currentPage,
-        per_page: 15,
-      })
+      let response
+      if (useQueueMode && !statusFilter && !overdueOnly) {
+        response = await recallsApi.getRecallsQueue({
+          days_ahead: daysAhead,
+          page: currentPage,
+          per_page: 15,
+        })
+      } else {
+        response = await recallsApi.getRecalls({
+          status: statusFilter || undefined,
+          overdue_only: overdueOnly || undefined,
+          page: currentPage,
+          per_page: 15,
+        })
+      }
       setRecalls(response.data)
       setTotalPages(response.meta.last_page)
       setTotalRecalls(response.meta.total)
@@ -83,20 +93,25 @@ export function RichiamiPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [statusFilter, dateFrom, dateTo, debouncedSearch, currentPage])
+  }, [useQueueMode, statusFilter, overdueOnly, daysAhead, currentPage])
 
   useEffect(() => {
     loadRecalls()
   }, [loadRecalls])
 
-  async function handleOutcomeSubmit(outcome: RecallOutcome, notes: string | null) {
+  async function handleOutcomeSubmit(
+    outcome: ContactOutcomeType,
+    notes: string | null,
+    appointmentId: number | null
+  ) {
     if (!outcomeRecall) return
 
     setIsSubmittingOutcome(true)
     try {
-      await recallsApi.updateRecallOutcome(outcomeRecall.id, {
+      await recallsApi.recordContactOutcome(outcomeRecall.id, {
         outcome,
-        outcome_notes: notes,
+        notes,
+        resulting_appointment_id: appointmentId,
       })
       setOutcomeRecall(null)
       loadRecalls()
@@ -106,7 +121,7 @@ export function RichiamiPage() {
       } else {
         setError('Errore durante il salvataggio dell\'esito')
       }
-      console.error('Failed to update recall outcome:', err)
+      console.error('Failed to record contact outcome:', err)
     } finally {
       setIsSubmittingOutcome(false)
     }
@@ -132,22 +147,28 @@ export function RichiamiPage() {
 
   function getStatusBadgeClass(status: RecallStatus): string {
     switch (status) {
-      case 'completed':
+      case 'scheduled':
         return 'badge-success'
       case 'contacted':
         return 'badge-info'
-      case 'scheduled':
-        return 'badge-primary'
-      case 'cancelled':
-        return 'badge-danger'
-      default:
+      case 'pending':
         return 'badge-warning'
+      case 'declined':
+      case 'expired':
+        return 'badge-danger'
+      case 'no_answer':
+        return 'badge-secondary'
+      default:
+        return 'badge-secondary'
     }
   }
 
-  function isActionable(recall: Recall): boolean {
-    return recall.status === 'pending' || recall.status === 'contacted'
+  function isActionable(recall: RecallTask): boolean {
+    return recall.status === 'pending' || recall.status === 'contacted' || recall.status === 'no_answer'
   }
+
+  const pendingCount = recalls.filter(r => r.status === 'pending').length
+  const overdueCount = recalls.filter(r => r.is_overdue).length
 
   return (
     <div className="page">
@@ -155,27 +176,31 @@ export function RichiamiPage() {
         <h1>Richiami</h1>
         <div className="page-actions">
           {totalRecalls > 0 && (
-            <span className="badge badge-info" style={{ marginRight: '0.5rem' }}>
-              {recalls.filter(r => r.status === 'pending').length} in attesa
-            </span>
+            <>
+              <span className="badge badge-warning" style={{ marginRight: '0.5rem' }}>
+                {pendingCount} in attesa
+              </span>
+              {overdueCount > 0 && (
+                <span className="badge badge-danger" style={{ marginRight: '0.5rem' }}>
+                  {overdueCount} scadut{overdueCount === 1 ? 'o' : 'i'}
+                </span>
+              )}
+            </>
           )}
+          <button
+            className="btn btn-secondary"
+            onClick={loadRecalls}
+            disabled={isLoading}
+            title="Aggiorna lista"
+          >
+            <RefreshCw size={18} className={isLoading ? 'spinner-icon' : ''} />
+          </button>
         </div>
       </header>
 
       <div className="page-content">
         <div className="card">
-          <div className="search-bar">
-            <div className="search-input-wrapper">
-              <Search size={18} className="search-icon" aria-hidden="true" />
-              <input
-                type="search"
-                placeholder="Cerca per nome paziente..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-                aria-label="Cerca richiami"
-              />
-            </div>
+          <div className="search-bar search-bar-wrap">
             <div className="filter-group">
               <Filter size={16} aria-hidden="true" />
               <select
@@ -184,7 +209,7 @@ export function RichiamiPage() {
                 className="filter-select"
                 aria-label="Filtra per stato"
               >
-                <option value="">Tutti gli stati</option>
+                <option value="">Coda attiva</option>
                 {Object.entries(RECALL_STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -192,26 +217,30 @@ export function RichiamiPage() {
                 ))}
               </select>
             </div>
-            <div className="filter-group">
-              <Calendar size={16} aria-hidden="true" />
+            {useQueueMode && !statusFilter && (
+              <div className="filter-group">
+                <Calendar size={16} aria-hidden="true" />
+                <select
+                  value={daysAhead}
+                  onChange={(e) => handleDaysAheadChange(parseInt(e.target.value, 10))}
+                  className="filter-select"
+                  aria-label="Giorni in anticipo"
+                >
+                  <option value={3}>Prossimi 3 giorni</option>
+                  <option value={7}>Prossimi 7 giorni</option>
+                  <option value={14}>Prossimi 14 giorni</option>
+                  <option value={30}>Prossimi 30 giorni</option>
+                </select>
+              </div>
+            )}
+            <label className="form-checkbox" style={{ marginLeft: 'auto' }}>
               <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => handleDateFromChange(e.target.value)}
-                className="filter-input"
-                aria-label="Data da"
-                placeholder="Da"
+                type="checkbox"
+                checked={overdueOnly}
+                onChange={(e) => handleOverdueOnlyChange(e.target.checked)}
               />
-              <span className="filter-separator">—</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => handleDateToChange(e.target.value)}
-                className="filter-input"
-                aria-label="Data a"
-                placeholder="A"
-              />
-            </div>
+              <span>Solo scaduti</span>
+            </label>
             {totalRecalls > 0 && (
               <span className="results-count">
                 {totalRecalls} richiam{totalRecalls === 1 ? 'o' : 'i'}
@@ -242,12 +271,12 @@ export function RichiamiPage() {
             <div className="empty-state">
               <PhoneCall size={48} className="empty-icon" />
               <h3>
-                {debouncedSearch || statusFilter || dateFrom || dateTo
+                {statusFilter || overdueOnly
                   ? 'Nessun richiamo trovato'
                   : 'Nessun richiamo in coda'}
               </h3>
               <p>
-                {debouncedSearch || statusFilter || dateFrom || dateTo
+                {statusFilter || overdueOnly
                   ? 'Prova a modificare i criteri di ricerca'
                   : 'I richiami appariranno qui quando le visite avranno una data di richiamo consigliata'}
               </p>
@@ -259,10 +288,10 @@ export function RichiamiPage() {
                   <thead>
                     <tr>
                       <th>Paziente</th>
-                      <th>Data richiamo</th>
-                      <th>Motivo</th>
+                      <th>Scadenza</th>
                       <th>Stato</th>
-                      <th>Esito</th>
+                      <th>Tentativi</th>
+                      <th>Ultimo contatto</th>
                       <th>
                         <span className="sr-only">Azioni</span>
                       </th>
@@ -270,7 +299,7 @@ export function RichiamiPage() {
                   </thead>
                   <tbody>
                     {recalls.map((recall) => (
-                      <tr key={recall.id} className={recall.status === 'pending' ? 'row-highlight' : ''}>
+                      <tr key={recall.id} className={recall.is_overdue ? 'row-highlight' : ''}>
                         <td>
                           <div className="patient-name">
                             <span className="patient-avatar">
@@ -308,28 +337,28 @@ export function RichiamiPage() {
                         </td>
                         <td>
                           <div className="date-cell">
+                            {recall.is_overdue && (
+                              <AlertTriangle size={14} className="status-icon-danger" title="Scaduto" />
+                            )}
                             <Calendar size={14} />
-                            {formatDate(recall.recall_date)}
+                            {formatDate(recall.due_date)}
                           </div>
                         </td>
                         <td>
-                          {recall.reason || <span className="text-muted">Controllo periodico</span>}
-                        </td>
-                        <td>
                           <span className={`badge ${getStatusBadgeClass(recall.status)}`}>
-                            {RECALL_STATUS_LABELS[recall.status]}
+                            {recall.status_label || RECALL_STATUS_LABELS[recall.status]}
                           </span>
                         </td>
                         <td>
-                          {recall.outcome ? (
-                            <div>
-                              <span className="text-small">{RECALL_OUTCOME_LABELS[recall.outcome]}</span>
-                              {recall.contacted_at && (
-                                <div className="text-muted text-xs">
-                                  {formatDateTime(recall.contacted_at)}
-                                </div>
-                              )}
-                            </div>
+                          <span className="text-muted">
+                            {recall.contact_attempts}
+                          </span>
+                        </td>
+                        <td>
+                          {recall.last_contact_at ? (
+                            <span className="text-small text-muted">
+                              {formatDateTime(recall.last_contact_at)}
+                            </span>
                           ) : (
                             <span className="text-muted">-</span>
                           )}

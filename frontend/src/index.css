@@ -2036,3 +2036,45 @@ select {
   align-items: center;
   gap: var(--spacing-sm);
 }
+
+/* Preview panel */
+.preview-panel {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.preview-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.preview-field {
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.875rem;
+}
+
+.preview-field:last-child {
+  margin-bottom: 0;
+}
+
+.preview-content {
+  margin: var(--spacing-xs) 0 0 0;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Button group */
+.btn-group {
+  display: flex;
+  gap: var(--spacing-xs);
+}

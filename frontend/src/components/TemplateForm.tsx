@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Info } from 'lucide-react'
-import type { Template, TemplateFormData, TemplateChannel, TemplateType } from '@/types/template'
+import { Eye, Info } from 'lucide-react'
+import type { MessageTemplate, MessageTemplateCreate, TemplateChannel } from '@/types/template'
 import {
   TEMPLATE_CHANNEL_LABELS,
-  TEMPLATE_TYPE_LABELS,
   AVAILABLE_VARIABLES,
   TEMPLATE_EXAMPLES,
 } from '@/types/template'
+import * as templatesApi from '@/api/templates'
 
 interface TemplateFormProps {
-  template: Template | null
-  onSubmit: (data: TemplateFormData) => Promise<void>
+  template: MessageTemplate | null
+  onSubmit: (data: MessageTemplateCreate) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
 }
@@ -23,28 +23,28 @@ export function TemplateForm({
 }: TemplateFormProps) {
   const [name, setName] = useState('')
   const [channel, setChannel] = useState<TemplateChannel>('sms')
-  const [type, setType] = useState<TemplateType>('reminder_48h')
   const [subject, setSubject] = useState('')
-  const [content, setContent] = useState('')
+  const [body, setBody] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [showVariables, setShowVariables] = useState(false)
+  const [previewResult, setPreviewResult] = useState<{ subject: string | null; body: string } | null>(null)
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
   useEffect(() => {
     if (template) {
       setName(template.name)
       setChannel(template.channel)
-      setType(template.type)
       setSubject(template.subject || '')
-      setContent(template.content)
+      setBody(template.body)
       setIsActive(template.is_active)
     } else {
       setName('')
       setChannel('sms')
-      setType('reminder_48h')
       setSubject('')
-      setContent('')
+      setBody('')
       setIsActive(true)
     }
+    setPreviewResult(null)
   }, [template])
 
   function handleChannelChange(newChannel: TemplateChannel) {
@@ -52,32 +52,59 @@ export function TemplateForm({
     if (newChannel === 'sms') {
       setSubject('')
     }
+    setPreviewResult(null)
   }
 
-  function loadExample() {
-    const key = `${channel}_${type}`
-    const example = TEMPLATE_EXAMPLES[key]
+  function loadExample(exampleKey: string) {
+    const example = TEMPLATE_EXAMPLES[exampleKey]
     if (example) {
-      setContent(example.content)
+      setBody(example.body)
       if (example.subject && channel === 'email') {
         setSubject(example.subject)
       }
     }
+    setPreviewResult(null)
   }
 
   function insertVariable(variable: string) {
-    const textarea = document.getElementById('template-content') as HTMLTextAreaElement
+    const textarea = document.getElementById('template-body') as HTMLTextAreaElement
     if (textarea) {
       const start = textarea.selectionStart
       const end = textarea.selectionEnd
-      const newContent = content.slice(0, start) + variable + content.slice(end)
-      setContent(newContent)
+      const newBody = body.slice(0, start) + variable + body.slice(end)
+      setBody(newBody)
+      setPreviewResult(null)
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = start + variable.length
         textarea.focus()
       }, 0)
     } else {
-      setContent(content + variable)
+      setBody(body + variable)
+      setPreviewResult(null)
+    }
+  }
+
+  async function handlePreview() {
+    if (!template) return
+    
+    setIsPreviewLoading(true)
+    try {
+      const result = await templatesApi.previewTemplate(template.id, {
+        data: {
+          nome: 'Mario',
+          cognome: 'Rossi',
+          data: '15/01/2024',
+          ora: '10:30',
+          telefono: '+39 02 1234567',
+          data_richiamo: '15/07/2024',
+          tipo_visita: 'Controllo',
+        },
+      })
+      setPreviewResult(result)
+    } catch (err) {
+      console.error('Failed to preview template:', err)
+    } finally {
+      setIsPreviewLoading(false)
     }
   }
 
@@ -86,9 +113,8 @@ export function TemplateForm({
     await onSubmit({
       name,
       channel,
-      type,
       subject: channel === 'email' ? subject || null : null,
-      content,
+      body,
       is_active: isActive,
     })
   }
@@ -134,35 +160,32 @@ export function TemplateForm({
           </select>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="template-type" className="form-label">
-            Tipo <span className="required">*</span>
-          </label>
-          <select
-            id="template-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as TemplateType)}
-            className="form-select"
-            required
-            disabled={isLoading}
-          >
-            {Object.entries(TEMPLATE_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="form-group" style={{ alignSelf: 'flex-end' }}>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={loadExample}
-            disabled={isLoading}
-          >
-            Carica esempio
-          </button>
+          <div className="btn-group">
+            <select
+              className="filter-select"
+              onChange={(e) => {
+                if (e.target.value) {
+                  loadExample(e.target.value)
+                  e.target.value = ''
+                }
+              }}
+              disabled={isLoading}
+            >
+              <option value="">Carica esempio...</option>
+              {channel === 'sms' && (
+                <>
+                  <option value="sms_reminder_48h">Promemoria 48h</option>
+                  <option value="sms_reminder_24h">Promemoria 24h</option>
+                  <option value="sms_post_visit">Post visita</option>
+                  <option value="sms_recall">Richiamo</option>
+                </>
+              )}
+              {channel === 'email' && (
+                <option value="email_reminder">Promemoria email</option>
+              )}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -175,7 +198,10 @@ export function TemplateForm({
             type="text"
             id="template-subject"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value)
+              setPreviewResult(null)
+            }}
             className="form-input"
             required={channel === 'email'}
             disabled={isLoading}
@@ -186,7 +212,7 @@ export function TemplateForm({
 
       <div className="form-group">
         <div className="form-label-row">
-          <label htmlFor="template-content" className="form-label">
+          <label htmlFor="template-body" className="form-label">
             Contenuto <span className="required">*</span>
           </label>
           <button
@@ -219,9 +245,12 @@ export function TemplateForm({
         )}
 
         <textarea
-          id="template-content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
+          id="template-body"
+          value={body}
+          onChange={(e) => {
+            setBody(e.target.value)
+            setPreviewResult(null)
+          }}
           className="form-textarea"
           rows={channel === 'email' ? 8 : 4}
           required
@@ -234,10 +263,39 @@ export function TemplateForm({
         />
         {channel === 'sms' && (
           <p className="form-hint">
-            Caratteri: {content.length}/160 {content.length > 160 && `(${Math.ceil(content.length / 153)} SMS)`}
+            Caratteri: {body.length}/160 {body.length > 160 && `(${Math.ceil(body.length / 153)} SMS)`}
           </p>
         )}
       </div>
+
+      {template && (
+        <div className="form-group">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handlePreview}
+            disabled={isLoading || isPreviewLoading}
+          >
+            <Eye size={16} />
+            {isPreviewLoading ? 'Caricamento...' : 'Anteprima'}
+          </button>
+          
+          {previewResult && (
+            <div className="preview-panel">
+              <p className="preview-title">Anteprima con dati di esempio:</p>
+              {previewResult.subject && (
+                <div className="preview-field">
+                  <strong>Oggetto:</strong> {previewResult.subject}
+                </div>
+              )}
+              <div className="preview-field">
+                <strong>Messaggio:</strong>
+                <pre className="preview-content">{previewResult.body}</pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="form-group">
         <label className="form-checkbox">

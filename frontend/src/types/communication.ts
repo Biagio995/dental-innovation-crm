@@ -1,57 +1,76 @@
-import type { Patient } from './patient'
 import type { PaginationLinks, PaginationMeta } from './patient'
+import type { PatientSummary, UserSummary } from './recall'
 
 export type CommunicationChannel = 'sms' | 'email'
-export type CommunicationStatus = 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced'
-export type CommunicationType = 'reminder' | 'recall' | 'post_visit' | 'manual'
+export type CommunicationStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced'
+export type ReminderType = 'appointment_48h' | 'appointment_24h' | 'post_visit' | 'recall'
 
-export interface Communication {
+export interface CommunicationLog {
   id: number
   patient_id: number
-  patient?: Patient
-  template_id: number | null
+  patient?: PatientSummary
+  appointment_id: number | null
+  recall_task_id: number | null
+  message_template_id: number | null
   channel: CommunicationChannel
-  type: CommunicationType
+  channel_label: string
+  status: CommunicationStatus
+  status_label: string
   recipient: string
   subject: string | null
-  content: string
-  status: CommunicationStatus
-  sent_at: string | null
-  delivered_at: string | null
-  failed_at: string | null
+  body: string
+  reminder_type: ReminderType | null
+  reminder_type_label: string | null
+  external_id: string | null
   error_message: string | null
+  metadata: Record<string, unknown> | null
+  sent_at: string | null
+  sent_by: number | null
+  sender: UserSummary | null
   created_at: string
   updated_at: string
 }
 
-export interface CommunicationFormData {
+export interface CommunicationLogCreate {
   patient_id: number
-  template_id?: number | null
+  appointment_id?: number | null
+  recall_task_id?: number | null
+  message_template_id?: number | null
   channel: CommunicationChannel
-  type: CommunicationType
+  status?: CommunicationStatus
   recipient: string
   subject?: string | null
-  content: string
+  body: string
+  reminder_type?: ReminderType | null
+  external_id?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+export interface CommunicationStatusUpdate {
+  status: CommunicationStatus
+  external_id?: string | null
+  error_message?: string | null
 }
 
 export interface CommunicationsListResponse {
-  data: Communication[]
+  data: CommunicationLog[]
   links: PaginationLinks
   meta: PaginationMeta
 }
 
 export interface CommunicationResponse {
-  data: Communication
+  data: CommunicationLog
 }
 
 export interface CommunicationFilters {
   patient_id?: number
+  appointment_id?: number
+  recall_task_id?: number
   channel?: CommunicationChannel
-  type?: CommunicationType
   status?: CommunicationStatus
+  reminder_type?: ReminderType
   from?: string
   to?: string
-  search?: string
   page?: number
   per_page?: number
 }
@@ -62,18 +81,18 @@ export const COMMUNICATION_CHANNEL_LABELS: Record<CommunicationChannel, string> 
 }
 
 export const COMMUNICATION_STATUS_LABELS: Record<CommunicationStatus, string> = {
-  pending: 'In attesa',
+  queued: 'In coda',
   sent: 'Inviato',
   delivered: 'Consegnato',
   failed: 'Fallito',
   bounced: 'Rifiutato',
 }
 
-export const COMMUNICATION_TYPE_LABELS: Record<CommunicationType, string> = {
-  reminder: 'Promemoria',
-  recall: 'Richiamo',
+export const REMINDER_TYPE_LABELS: Record<ReminderType, string> = {
+  appointment_48h: 'Promemoria 48h',
+  appointment_24h: 'Promemoria 24h',
   post_visit: 'Post visita',
-  manual: 'Manuale',
+  recall: 'Richiamo',
 }
 
 export function getStatusColor(status: CommunicationStatus): string {
@@ -82,7 +101,7 @@ export function getStatusColor(status: CommunicationStatus): string {
       return 'success'
     case 'sent':
       return 'info'
-    case 'pending':
+    case 'queued':
       return 'warning'
     case 'failed':
     case 'bounced':

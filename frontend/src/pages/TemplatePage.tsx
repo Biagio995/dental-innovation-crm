@@ -20,29 +20,29 @@ import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TemplateForm } from '@/components/TemplateForm'
 import * as templatesApi from '@/api/templates'
-import type { Template, TemplateFormData, TemplateChannel, TemplateType } from '@/types/template'
-import { TEMPLATE_CHANNEL_LABELS, TEMPLATE_TYPE_LABELS } from '@/types/template'
+import type { MessageTemplate, MessageTemplateCreate, TemplateChannel } from '@/types/template'
+import { TEMPLATE_CHANNEL_LABELS } from '@/types/template'
 import { ApiRequestError } from '@/api/client'
 
 export function TemplatePage() {
   const { canDelete } = useAuth()
 
-  const [templates, setTemplates] = useState<Template[]>([])
+  const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState<TemplateChannel | ''>('')
-  const [typeFilter, setTypeFilter] = useState<TemplateType | ''>('')
+  const [activeOnly, setActiveOnly] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalTemplates, setTotalTemplates] = useState(0)
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [deleteTemplate, setDeleteTemplate] = useState<Template | null>(null)
+  const [deleteTemplate, setDeleteTemplate] = useState<MessageTemplate | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
@@ -58,8 +58,8 @@ export function TemplatePage() {
     setCurrentPage(1)
   }
 
-  function handleTypeFilterChange(type: TemplateType | '') {
-    setTypeFilter(type)
+  function handleActiveOnlyChange(checked: boolean) {
+    setActiveOnly(checked)
     setCurrentPage(1)
   }
 
@@ -70,7 +70,7 @@ export function TemplatePage() {
     try {
       const response = await templatesApi.getTemplates({
         channel: channelFilter || undefined,
-        type: typeFilter || undefined,
+        active_only: activeOnly || undefined,
         search: debouncedSearch || undefined,
         page: currentPage,
         per_page: 15,
@@ -87,7 +87,7 @@ export function TemplatePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [channelFilter, typeFilter, debouncedSearch, currentPage])
+  }, [channelFilter, activeOnly, debouncedSearch, currentPage])
 
   useEffect(() => {
     loadTemplates()
@@ -98,7 +98,7 @@ export function TemplatePage() {
     setIsFormModalOpen(true)
   }
 
-  function openEditModal(template: Template) {
+  function openEditModal(template: MessageTemplate) {
     setEditingTemplate(template)
     setIsFormModalOpen(true)
   }
@@ -108,7 +108,7 @@ export function TemplatePage() {
     setEditingTemplate(null)
   }
 
-  async function handleSubmit(data: TemplateFormData) {
+  async function handleSubmit(data: MessageTemplateCreate) {
     setIsSubmitting(true)
     try {
       if (editingTemplate) {
@@ -158,10 +158,12 @@ export function TemplatePage() {
       <header className="page-header">
         <h1>Template</h1>
         <div className="page-actions">
-          <button className="btn btn-primary" onClick={openCreateModal}>
-            <FilePlus size={18} />
-            Nuovo Template
-          </button>
+          {canDelete() && (
+            <button className="btn btn-primary" onClick={openCreateModal}>
+              <FilePlus size={18} />
+              Nuovo Template
+            </button>
+          )}
         </div>
       </header>
 
@@ -195,21 +197,14 @@ export function TemplatePage() {
                 ))}
               </select>
             </div>
-            <div className="filter-group">
-              <select
-                value={typeFilter}
-                onChange={(e) => handleTypeFilterChange(e.target.value as TemplateType | '')}
-                className="filter-select"
-                aria-label="Filtra per tipo"
-              >
-                <option value="">Tutti i tipi</option>
-                {Object.entries(TEMPLATE_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <label className="form-checkbox">
+              <input
+                type="checkbox"
+                checked={activeOnly}
+                onChange={(e) => handleActiveOnlyChange(e.target.checked)}
+              />
+              <span>Solo attivi</span>
+            </label>
             {totalTemplates > 0 && (
               <span className="results-count">
                 {totalTemplates} template
@@ -240,14 +235,16 @@ export function TemplatePage() {
             <div className="empty-state">
               <FileText size={48} className="empty-icon" />
               <h3>
-                {debouncedSearch || channelFilter || typeFilter
+                {debouncedSearch || channelFilter || activeOnly
                   ? 'Nessun template trovato'
                   : 'Nessun template presente'}
               </h3>
               <p>
-                {debouncedSearch || channelFilter || typeFilter
+                {debouncedSearch || channelFilter || activeOnly
                   ? 'Prova a modificare i criteri di ricerca'
-                  : 'Clicca su "Nuovo Template" per crearne uno'}
+                  : canDelete()
+                    ? 'Clicca su "Nuovo Template" per crearne uno'
+                    : 'Non ci sono template disponibili'}
               </p>
             </div>
           ) : (
@@ -258,7 +255,6 @@ export function TemplatePage() {
                     <tr>
                       <th>Nome</th>
                       <th>Canale</th>
-                      <th>Tipo</th>
                       <th>Contenuto</th>
                       <th>Stato</th>
                       <th>
@@ -284,13 +280,8 @@ export function TemplatePage() {
                           </span>
                         </td>
                         <td>
-                          <span className="badge badge-secondary">
-                            {TEMPLATE_TYPE_LABELS[template.type]}
-                          </span>
-                        </td>
-                        <td>
                           <span className="content-preview">
-                            {truncateContent(template.content)}
+                            {truncateContent(template.body)}
                           </span>
                         </td>
                         <td>
@@ -306,22 +297,24 @@ export function TemplatePage() {
                         </td>
                         <td>
                           <div className="row-actions">
-                            <button
-                              className="btn btn-icon"
-                              onClick={() => openEditModal(template)}
-                              title="Modifica"
-                            >
-                              <Edit size={18} />
-                            </button>
-                            {canDelete() ? (
-                              <button
-                                className="btn btn-icon btn-danger"
-                                onClick={() => setDeleteTemplate(template)}
-                                title="Elimina"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            ) : null}
+                            {canDelete() && (
+                              <>
+                                <button
+                                  className="btn btn-icon"
+                                  onClick={() => openEditModal(template)}
+                                  title="Modifica"
+                                >
+                                  <Edit size={18} />
+                                </button>
+                                <button
+                                  className="btn btn-icon btn-danger"
+                                  onClick={() => setDeleteTemplate(template)}
+                                  title="Elimina"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -358,10 +351,10 @@ export function TemplatePage() {
             </>
           )}
 
-          {!canDelete() && templates.length > 0 && (
+          {!canDelete() && (
             <p className="permission-notice">
               <Trash2 size={16} />
-              Come operatore, non hai i permessi per eliminare template.
+              Come operatore, non hai i permessi per gestire i template.
             </p>
           )}
         </div>

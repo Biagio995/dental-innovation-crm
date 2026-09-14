@@ -1,61 +1,109 @@
-import type { Patient } from './patient'
 import type { PaginationLinks, PaginationMeta } from './patient'
 
-export type RecallStatus = 'pending' | 'scheduled' | 'contacted' | 'completed' | 'cancelled'
-export type RecallOutcome = 'scheduled' | 'not_interested' | 'unreachable' | 'postponed' | 'cancelled'
+export type RecallStatus = 'pending' | 'contacted' | 'scheduled' | 'no_answer' | 'declined' | 'expired'
+export type ContactOutcomeType = 'contacted' | 'scheduled' | 'no_answer' | 'declined'
 
-export interface Recall {
+export interface UserSummary {
+  id: number
+  name: string
+}
+
+export interface PatientSummary {
+  id: number
+  first_name: string
+  last_name: string
+  full_name: string
+  phone: string | null
+  email: string | null
+}
+
+export interface RecallTask {
   id: number
   patient_id: number
-  patient?: Patient
+  patient?: PatientSummary
   visit_id: number | null
-  recall_date: string
-  reason: string | null
-  notes: string | null
+  due_date: string
   status: RecallStatus
-  outcome: RecallOutcome | null
-  outcome_notes: string | null
-  contacted_at: string | null
+  status_label: string
+  notes: string | null
+  contact_attempts: number
+  last_contact_at: string | null
+  is_overdue: boolean
+  created_by: number | null
+  creator: UserSummary | null
+  assigned_to: number | null
+  assignee: UserSummary | null
+  resulting_appointment_id: number | null
   created_at: string
   updated_at: string
 }
 
-export interface RecallOutcomeData {
-  outcome: RecallOutcome
-  outcome_notes?: string | null
+export interface RecallTaskCreate {
+  patient_id: number
+  visit_id?: number | null
+  due_date: string
+  notes?: string | null
+  assigned_to?: number | null
+}
+
+export interface RecallTaskUpdate {
+  due_date?: string
+  status?: RecallStatus
+  notes?: string | null
+  assigned_to?: number | null
+  resulting_appointment_id?: number | null
+}
+
+export interface ContactOutcome {
+  outcome: ContactOutcomeType
+  notes?: string | null
+  resulting_appointment_id?: number | null
 }
 
 export interface RecallsListResponse {
-  data: Recall[]
+  data: RecallTask[]
   links: PaginationLinks
   meta: PaginationMeta
 }
 
 export interface RecallResponse {
-  data: Recall
+  data: RecallTask
 }
 
 export interface RecallFilters {
   status?: RecallStatus
-  from?: string
-  to?: string
-  search?: string
+  patient_id?: number
+  assigned_to?: number
+  overdue_only?: boolean
+  due_from?: string
+  due_to?: string
   page?: number
   per_page?: number
 }
 
-export const RECALL_STATUS_LABELS: Record<RecallStatus, string> = {
-  pending: 'In attesa',
-  scheduled: 'Programmato',
-  contacted: 'Contattato',
-  completed: 'Completato',
-  cancelled: 'Annullato',
+export interface RecallQueueFilters {
+  days_ahead?: number
+  page?: number
+  per_page?: number
 }
 
-export const RECALL_OUTCOME_LABELS: Record<RecallOutcome, string> = {
+export interface GenerateRecallsResponse {
+  message: string
+  count: number
+}
+
+export const RECALL_STATUS_LABELS: Record<RecallStatus, string> = {
+  pending: 'In attesa',
+  contacted: 'Contattato',
+  scheduled: 'Programmato',
+  no_answer: 'Non risponde',
+  declined: 'Rifiutato',
+  expired: 'Scaduto',
+}
+
+export const CONTACT_OUTCOME_LABELS: Record<ContactOutcomeType, string> = {
+  contacted: 'Contattato (da richiamare)',
   scheduled: 'Appuntamento fissato',
-  not_interested: 'Non interessato',
-  unreachable: 'Non raggiungibile',
-  postponed: 'Rimandato',
-  cancelled: 'Annullato',
+  no_answer: 'Non risponde',
+  declined: 'Rifiutato',
 }

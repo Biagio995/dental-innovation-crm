@@ -18,54 +18,44 @@ import {
 import { Link } from 'react-router-dom'
 import * as communicationsApi from '@/api/communications'
 import type {
-  Communication,
+  CommunicationLog,
   CommunicationChannel,
   CommunicationStatus,
-  CommunicationType,
+  ReminderType,
 } from '@/types/communication'
 import {
   COMMUNICATION_CHANNEL_LABELS,
   COMMUNICATION_STATUS_LABELS,
-  COMMUNICATION_TYPE_LABELS,
+  REMINDER_TYPE_LABELS,
   getStatusColor,
 } from '@/types/communication'
 import { ApiRequestError } from '@/api/client'
 
 export function StoricoPage() {
-  const [communications, setCommunications] = useState<Communication[]>([])
+  const [communications, setCommunications] = useState<CommunicationLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState<CommunicationChannel | ''>('')
-  const [typeFilter, setTypeFilter] = useState<CommunicationType | ''>('')
   const [statusFilter, setStatusFilter] = useState<CommunicationStatus | ''>('')
+  const [reminderTypeFilter, setReminderTypeFilter] = useState<ReminderType | ''>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCommunications, setTotalCommunications] = useState(0)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery)
-      setCurrentPage(1)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
-
   function handleChannelFilterChange(channel: CommunicationChannel | '') {
     setChannelFilter(channel)
     setCurrentPage(1)
   }
 
-  function handleTypeFilterChange(type: CommunicationType | '') {
-    setTypeFilter(type)
+  function handleStatusFilterChange(status: CommunicationStatus | '') {
+    setStatusFilter(status)
     setCurrentPage(1)
   }
 
-  function handleStatusFilterChange(status: CommunicationStatus | '') {
-    setStatusFilter(status)
+  function handleReminderTypeFilterChange(type: ReminderType | '') {
+    setReminderTypeFilter(type)
     setCurrentPage(1)
   }
 
@@ -86,11 +76,10 @@ export function StoricoPage() {
     try {
       const response = await communicationsApi.getCommunications({
         channel: channelFilter || undefined,
-        type: typeFilter || undefined,
         status: statusFilter || undefined,
+        reminder_type: reminderTypeFilter || undefined,
         from: dateFrom || undefined,
         to: dateTo || undefined,
-        search: debouncedSearch || undefined,
         page: currentPage,
         per_page: 15,
       })
@@ -106,7 +95,7 @@ export function StoricoPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [channelFilter, typeFilter, statusFilter, dateFrom, dateTo, debouncedSearch, currentPage])
+  }, [channelFilter, statusFilter, reminderTypeFilter, dateFrom, dateTo, currentPage])
 
   useEffect(() => {
     loadCommunications()
@@ -134,7 +123,7 @@ export function StoricoPage() {
         return <CheckCircle size={16} className="status-icon-success" />
       case 'sent':
         return <CheckCircle size={16} className="status-icon-info" />
-      case 'pending':
+      case 'queued':
         return <Clock size={16} className="status-icon-warning" />
       case 'failed':
       case 'bounced':
@@ -149,7 +138,7 @@ export function StoricoPage() {
     return content.slice(0, maxLength) + '...'
   }
 
-  const hasFilters = debouncedSearch || channelFilter || typeFilter || statusFilter || dateFrom || dateTo
+  const hasFilters = channelFilter || statusFilter || reminderTypeFilter || dateFrom || dateTo
 
   return (
     <div className="page">
@@ -160,17 +149,6 @@ export function StoricoPage() {
       <div className="page-content">
         <div className="card">
           <div className="search-bar search-bar-wrap">
-            <div className="search-input-wrapper">
-              <Search size={18} className="search-icon" aria-hidden="true" />
-              <input
-                type="search"
-                placeholder="Cerca per destinatario o contenuto..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-                aria-label="Cerca comunicazioni"
-              />
-            </div>
             <div className="filter-group">
               <Filter size={16} aria-hidden="true" />
               <select
@@ -189,13 +167,13 @@ export function StoricoPage() {
             </div>
             <div className="filter-group">
               <select
-                value={typeFilter}
-                onChange={(e) => handleTypeFilterChange(e.target.value as CommunicationType | '')}
+                value={reminderTypeFilter}
+                onChange={(e) => handleReminderTypeFilterChange(e.target.value as ReminderType | '')}
                 className="filter-select"
                 aria-label="Filtra per tipo"
               >
                 <option value="">Tutti i tipi</option>
-                {Object.entries(COMMUNICATION_TYPE_LABELS).map(([value, label]) => (
+                {Object.entries(REMINDER_TYPE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -323,13 +301,17 @@ export function StoricoPage() {
                         <td>
                           <span className="channel-badge channel-badge-sm">
                             {getChannelIcon(comm.channel)}
-                            {COMMUNICATION_CHANNEL_LABELS[comm.channel]}
+                            {comm.channel_label || COMMUNICATION_CHANNEL_LABELS[comm.channel]}
                           </span>
                         </td>
                         <td>
-                          <span className="badge badge-secondary badge-sm">
-                            {COMMUNICATION_TYPE_LABELS[comm.type]}
-                          </span>
+                          {comm.reminder_type ? (
+                            <span className="badge badge-secondary badge-sm">
+                              {comm.reminder_type_label || REMINDER_TYPE_LABELS[comm.reminder_type]}
+                            </span>
+                          ) : (
+                            <span className="text-muted">-</span>
+                          )}
                         </td>
                         <td>
                           <span className="text-small">{comm.recipient}</span>
@@ -342,7 +324,7 @@ export function StoricoPage() {
                               </div>
                             )}
                             <span className="content-preview text-small">
-                              {truncateContent(comm.content)}
+                              {truncateContent(comm.body)}
                             </span>
                           </div>
                         </td>
@@ -350,7 +332,7 @@ export function StoricoPage() {
                           <div className="status-cell">
                             {getStatusIcon(comm.status)}
                             <span className={`badge badge-${getStatusColor(comm.status)} badge-sm`}>
-                              {COMMUNICATION_STATUS_LABELS[comm.status]}
+                              {comm.status_label || COMMUNICATION_STATUS_LABELS[comm.status]}
                             </span>
                             {comm.error_message && (
                               <span className="error-hint" title={comm.error_message}>

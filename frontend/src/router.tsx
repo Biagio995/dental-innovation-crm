@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { PazientiPage } from '@/pages/PazientiPage'
+import { PatientDetailPage } from '@/pages/PatientDetailPage'
 import { AgendaPage } from '@/pages/AgendaPage'
 import { RichiamiPage } from '@/pages/RichiamiPage'
 import { TemplatePage } from '@/pages/TemplatePage'
@@ -29,6 +30,10 @@ export const router = createBrowserRouter([
       {
         path: 'pazienti',
         element: <PazientiPage />,
+      },
+      {
+        path: 'pazienti/:id',
+        element: <PatientDetailPage />,
       },
       {
         path: 'agenda',

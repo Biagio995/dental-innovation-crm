@@ -4,22 +4,22 @@ CRM MVP for dental practices: patients, appointments, recalls, and communication
 
 ## Stack
 
-- **Backend**: Laravel 12.x / PHP 8.3+
+- **Backend**: Laravel 12.x / PHP 8.3+ with Sanctum (session cookie auth)
+- **Frontend**: React 19 + TypeScript + Vite 8
 - **Database**: PostgreSQL 16
-- **Authentication**: Laravel Sanctum (session cookie, SPA-friendly)
 
 ## Requirements
 
 - PHP 8.3+
 - Composer 2.x
 - PostgreSQL 16+
-- Node.js 20+ (for frontend assets)
+- Node.js 20+ (for frontend)
 
 ## Quick Start
 
 ### Local Development
 
-1. **Clone and install dependencies**:
+1. **Clone and install backend dependencies**:
    ```bash
    git clone https://github.com/Biagio995/dental-innovation-crm.git
    cd dental-innovation-crm
@@ -48,9 +48,16 @@ CRM MVP for dental practices: patients, appointments, recalls, and communication
    php artisan migrate --seed
    ```
 
-5. **Start the server**:
+5. **Start the backend**:
    ```bash
    php artisan serve --port=8080
+   ```
+
+6. **Start the frontend** (in a separate terminal):
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
    ```
 
 ### Docker (Staging)
@@ -60,7 +67,8 @@ docker compose up -d --build
 docker compose exec app php artisan migrate --seed
 ```
 
-App available at: http://localhost:8080
+- Backend API: http://localhost:8080
+- Frontend: http://localhost:5173
 
 ## Seeded Users (Staging/Development)
 
@@ -111,37 +119,32 @@ Login attempts are rate-limited to **5 attempts per email+IP** combination.
 | admin    | Can delete patients/appointments, admin functions|
 | operator | Limited CRUD, cannot delete patients/appointments|
 
-## API Documentation
-
-OpenAPI specification available at: [`docs/openapi-auth.yaml`](docs/openapi-auth.yaml)
-
-## Testing
-
-```bash
-# Run all tests
-php artisan test
-
-# Run specific test suite
-php artisan test --testsuite=Feature
-```
-
 ## Project Structure
 
 ```
-app/
-├── Enums/
-│   └── UserRole.php          # Role enum (owner, admin, operator)
-├── Http/Controllers/Api/
-│   └── AuthController.php    # Authentication endpoints
-├── Models/
-│   ├── Appointment.php       # Appointment model (placeholder)
-│   ├── AuditLog.php          # Audit logging for sensitive actions
-│   ├── Patient.php           # Patient model (placeholder)
-│   └── User.php              # User model with role support
-└── Policies/
-    ├── AppointmentPolicy.php # Appointment authorization
-    └── PatientPolicy.php     # Patient authorization
+dental-innovation-crm/
+├── app/                          # Laravel backend
+│   ├── Enums/UserRole.php        # Role enum (owner, admin, operator)
+│   ├── Http/Controllers/Api/     # API controllers
+│   ├── Models/                   # Eloquent models
+│   └── Policies/                 # Authorization policies
+├── frontend/                     # React SPA (Vite + TypeScript)
+│   ├── src/
+│   │   ├── api/                  # API client and auth functions
+│   │   ├── components/           # Reusable UI components
+│   │   ├── context/              # React context providers
+│   │   └── pages/                # Route page components
+│   └── README.md                 # Frontend-specific documentation
+├── docs/                         # Project documentation
+│   └── openapi-auth.yaml         # OpenAPI specification
+└── docker-compose.yml
 ```
+
+## Documentation
+
+- [Frontend README](frontend/README.md) - Frontend setup, API contract, and CORS config
+- [OpenAPI Spec](docs/openapi-auth.yaml) - API documentation
+- [Staging Guide](docs/staging.md) - Staging environment setup
 
 ## Environment Variables
 
@@ -153,6 +156,16 @@ For SPA authentication, configure the stateful domains:
 
 ```env
 SANCTUM_STATEFUL_DOMAINS=localhost,localhost:8080,localhost:5173,your-spa-domain.com
+```
+
+## Testing
+
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test suite
+php artisan test --testsuite=Feature
 ```
 
 ## License

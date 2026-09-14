@@ -61,18 +61,38 @@ paths:
               description: HTTP-only session cookie
               schema:
                 type: string
-        '401':
-          description: Invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
         '422':
-          description: Validation error or rate limit exceeded
+          description: |
+            Validation failed. Possible causes:
+            - Missing or invalid email/password format
+            - Invalid credentials (email/password mismatch)
+            - Rate limit exceeded (too many login attempts)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
+              examples:
+                invalidCredentials:
+                  summary: Invalid credentials
+                  value:
+                    message: These credentials do not match our records.
+                    errors:
+                      email:
+                        - These credentials do not match our records.
+                validationError:
+                  summary: Validation error
+                  value:
+                    message: The email field must be a valid email address.
+                    errors:
+                      email:
+                        - The email field must be a valid email address.
+                rateLimited:
+                  summary: Rate limit exceeded
+                  value:
+                    message: Too many login attempts. Please try again in 60 seconds.
+                    errors:
+                      email:
+                        - Too many login attempts. Please try again in 60 seconds.
 
   /api/logout:
     post:

@@ -13,6 +13,18 @@ php artisan migrate --seed
 ```
 App: http://localhost:8080
 
+## Vite Frontend (SPA)
+
+When running the Vite dev server for the SPA frontend:
+- Vite runs on `http://localhost:5173`
+- `SANCTUM_STATEFUL_DOMAINS` must include `localhost:5173` for cookie auth to work
+- This is pre-configured in `.env.example` and `docker-compose.yml`
+
+Example `.env` configuration:
+```env
+SANCTUM_STATEFUL_DOMAINS=localhost,localhost:8080,localhost:5173,127.0.0.1,127.0.0.1:8080
+```
+
 ## Seed users
 | Role | Email | Password |
 |------|-------|----------|

@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dental_crm
+      POSTGRES_USER: dental
+      POSTGRES_PASSWORD: dental_staging
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dental -d dental_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_URL: http://localhost:8080
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: dental_crm
+      DB_USERNAME: dental
+      DB_PASSWORD: dental_staging
+      SESSION_DRIVER: cookie
+      SANCTUM_STATEFUL_DOMAINS: localhost:8080,localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

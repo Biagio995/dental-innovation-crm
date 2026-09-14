@@ -1,8 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Save, Loader2, Search } from 'lucide-react'
-import type { Appointment, AppointmentFormData, AppointmentStatus } from '@/types/appointment'
+import type { Appointment, AppointmentFormData } from '@/types/appointment'
 import type { Patient } from '@/types/patient'
-import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_TYPES } from '@/types/appointment'
+import { APPOINTMENT_TYPES } from '@/types/appointment'
 import { ApiRequestError } from '@/api/client'
 import * as patientsApi from '@/api/patients'
 
@@ -29,7 +29,6 @@ export function AppointmentForm({
     duration_minutes: 30,
     type: '',
     notes: '',
-    status: 'scheduled',
   })
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -55,7 +54,6 @@ export function AppointmentForm({
         duration_minutes: appointment.duration_minutes,
         type: appointment.type || '',
         notes: appointment.notes || '',
-        status: appointment.status,
       })
       if (appointment.patient) {
         setSelectedPatient(appointment.patient)
@@ -149,10 +147,10 @@ export function AppointmentForm({
     value: AppointmentFormData[K]
   ) {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
         const next = { ...prev }
-        delete next[field]
+        delete next[field as string]
         return next
       })
     }
@@ -262,15 +260,12 @@ export function AppointmentForm({
         </div>
 
         <div className="form-group">
-          <label htmlFor="duration_minutes">
-            Durata (minuti) <span className="required">*</span>
-          </label>
+          <label htmlFor="duration_minutes">Durata (minuti)</label>
           <select
             id="duration_minutes"
             value={formData.duration_minutes}
             onChange={(e) => handleChange('duration_minutes', Number(e.target.value))}
             disabled={isLoading}
-            required
           >
             <option value={15}>15 minuti</option>
             <option value={30}>30 minuti</option>
@@ -282,47 +277,29 @@ export function AppointmentForm({
         </div>
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
-          <label htmlFor="type">Tipo di appuntamento</label>
-          <select
-            id="type"
-            value={formData.type}
-            onChange={(e) => handleChange('type', e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="">Seleziona...</option>
-            {APPOINTMENT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="status">Stato</label>
-          <select
-            id="status"
-            value={formData.status}
-            onChange={(e) => handleChange('status', e.target.value as AppointmentStatus)}
-            disabled={isLoading}
-          >
-            {Object.entries(APPOINTMENT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="form-group">
+        <label htmlFor="type">Tipo di appuntamento</label>
+        <select
+          id="type"
+          value={formData.type || ''}
+          onChange={(e) => handleChange('type', e.target.value || null)}
+          disabled={isLoading}
+        >
+          <option value="">Seleziona...</option>
+          {APPOINTMENT_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="form-group">
         <label htmlFor="notes">Note</label>
         <textarea
           id="notes"
-          value={formData.notes}
-          onChange={(e) => handleChange('notes', e.target.value)}
+          value={formData.notes || ''}
+          onChange={(e) => handleChange('notes', e.target.value || null)}
           disabled={isLoading}
           rows={3}
           aria-invalid={!!errors.notes}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   CalendarPlus,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -11,14 +12,18 @@ import {
   User,
   AlertCircle,
   CalendarOff,
+  CheckCircle,
+  XCircle,
+  UserX,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { AppointmentForm } from '@/components/AppointmentForm'
+import { CompleteVisitDialog } from '@/components/CompleteVisitDialog'
 import * as appointmentsApi from '@/api/appointments'
-import type { Appointment, AppointmentFormData } from '@/types/appointment'
-import { APPOINTMENT_STATUS_LABELS } from '@/types/appointment'
+import type { Appointment, AppointmentFormData, AppointmentStatus, VisitCompleteData } from '@/types/appointment'
+import { APPOINTMENT_STATUS_LABELS, isEditableStatus, isCompletableStatus } from '@/types/appointment'
 import { ApiRequestError } from '@/api/client'
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8)
@@ -75,6 +80,12 @@ export function AgendaPage() {
   const [deleteAppointment, setDeleteAppointment] = useState<Appointment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const [statusMenuAppointment, setStatusMenuAppointment] = useState<Appointment | null>(null)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+  const [completeAppointment, setCompleteAppointment] = useState<Appointment | null>(null)
+  const [isCompleting, setIsCompleting] = useState(false)
+
   useEffect(() => {
     if (patientIdParam) {
       setIsFormModalOpen(true)
@@ -124,6 +135,9 @@ export function AgendaPage() {
   }
 
   function openEditModal(appointment: Appointment) {
+    if (!isEditableStatus(appointment.status)) {
+      return
+    }
     setEditingAppointment(appointment)
     setIsFormModalOpen(true)
   }
@@ -149,6 +163,37 @@ export function AgendaPage() {
       loadAppointments()
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleStatusChange(appointment: Appointment, newStatus: AppointmentStatus) {
+    setIsUpdatingStatus(true)
+    try {
+      await appointmentsApi.updateAppointmentStatus(appointment.id, newStatus)
+      setStatusMenuAppointment(null)
+      loadAppointments()
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err.message)
+      } else {
+        setError('Errore durante l\'aggiornamento dello stato')
+      }
+      console.error('Failed to update status:', err)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  async function handleCompleteVisit(data: VisitCompleteData) {
+    if (!completeAppointment) return
+
+    setIsCompleting(true)
+    try {
+      await appointmentsApi.completeVisit(completeAppointment.id, data)
+      setCompleteAppointment(null)
+      loadAppointments()
+    } finally {
+      setIsCompleting(false)
     }
   }
 
@@ -181,8 +226,7 @@ export function AgendaPage() {
     })
   }
 
-  const isToday =
-    selectedDate.toDateString() === new Date().toDateString()
+  const isToday = selectedDate.toDateString() === new Date().toDateString()
 
   return (
     <div className="page">
@@ -243,10 +287,10 @@ export function AgendaPage() {
               {error}
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={loadAppointments}
+                onClick={() => setError(null)}
                 style={{ marginLeft: 'auto' }}
               >
-                Riprova
+                Chiudi
               </button>
             </div>
           )}
@@ -279,20 +323,23 @@ export function AgendaPage() {
               <div className="appointments-container">
                 {appointments.map((apt) => {
                   const { top, height } = getAppointmentPosition(apt)
+                  const canEdit = isEditableStatus(apt.status)
+                  const canComplete = isCompletableStatus(apt.status)
+                  
                   return (
                     <div
                       key={apt.id}
-                      className={`appointment-block status-${apt.status}`}
+                      className={`appointment-block status-${apt.status} ${!canEdit ? 'appointment-readonly' : ''}`}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
                         minHeight: '40px',
                       }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openEditModal(apt)}
+                      role={canEdit ? 'button' : undefined}
+                      tabIndex={canEdit ? 0 : undefined}
+                      onClick={() => canEdit && openEditModal(apt)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (canEdit && (e.key === 'Enter' || e.key === ' ')) {
                           openEditModal(apt)
                         }
                       }}
@@ -320,17 +367,43 @@ export function AgendaPage() {
                         <span className="appointment-type">{apt.type}</span>
                       )}
                       <div className="appointment-actions">
-                        <button
-                          className="btn btn-icon btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openEditModal(apt)
-                          }}
-                          title="Modifica"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        {canDelete() && (
+                        {canComplete && (
+                          <button
+                            className="btn btn-icon btn-sm btn-complete"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setCompleteAppointment(apt)
+                            }}
+                            title="Completa visita"
+                          >
+                            <CheckCircle size={14} />
+                          </button>
+                        )}
+                        {canEdit && (
+                          <>
+                            <button
+                              className="btn btn-icon btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setStatusMenuAppointment(apt)
+                              }}
+                              title="Cambia stato"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              className="btn btn-icon btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEditModal(apt)
+                              }}
+                              title="Modifica"
+                            >
+                              <Edit size={14} />
+                            </button>
+                          </>
+                        )}
+                        {canDelete() && canEdit && (
                           <button
                             className="btn btn-icon btn-sm btn-danger"
                             onClick={(e) => {
@@ -374,6 +447,63 @@ export function AgendaPage() {
           isLoading={isSubmitting}
         />
       </Modal>
+
+      <Modal
+        isOpen={!!statusMenuAppointment}
+        onClose={() => setStatusMenuAppointment(null)}
+        title="Cambia Stato"
+        size="sm"
+      >
+        <div className="status-menu">
+          <p className="status-menu-info">
+            Seleziona il nuovo stato per l'appuntamento
+          </p>
+          <div className="status-options">
+            <button
+              className="status-option"
+              onClick={() => statusMenuAppointment && handleStatusChange(statusMenuAppointment, 'confirmed')}
+              disabled={isUpdatingStatus || statusMenuAppointment?.status === 'confirmed'}
+            >
+              <Check size={18} className="status-icon-confirmed" />
+              <span>Confermato</span>
+            </button>
+            <button
+              className="status-option"
+              onClick={() => statusMenuAppointment && handleStatusChange(statusMenuAppointment, 'cancelled')}
+              disabled={isUpdatingStatus}
+            >
+              <XCircle size={18} className="status-icon-cancelled" />
+              <span>Annullato</span>
+            </button>
+            <button
+              className="status-option"
+              onClick={() => statusMenuAppointment && handleStatusChange(statusMenuAppointment, 'no_show')}
+              disabled={isUpdatingStatus}
+            >
+              <UserX size={18} className="status-icon-no_show" />
+              <span>Non presentato</span>
+            </button>
+          </div>
+          {isUpdatingStatus && (
+            <div className="status-loading">
+              <Loader2 size={16} className="spinner-icon" />
+              <span>Aggiornamento...</span>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <CompleteVisitDialog
+        isOpen={!!completeAppointment}
+        onClose={() => setCompleteAppointment(null)}
+        onConfirm={handleCompleteVisit}
+        patientName={
+          completeAppointment?.patient
+            ? `${completeAppointment.patient.first_name} ${completeAppointment.patient.last_name}`
+            : ''
+        }
+        isLoading={isCompleting}
+      />
 
       <ConfirmDialog
         isOpen={!!deleteAppointment}

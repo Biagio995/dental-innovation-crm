@@ -2,15 +2,19 @@ import type {
   Patient,
   PatientFormData,
   PatientsListResponse,
+  PatientResponse,
   PatientFilters,
 } from '@/types/patient'
-import { apiGet, apiPost, apiPatch, apiDelete } from './client'
+import { apiGet, apiPost, apiPut, apiDelete } from './client'
 
 const BASE_PATH = '/api/patients'
 
 export async function getPatients(filters?: PatientFilters): Promise<PatientsListResponse> {
   const params = new URLSearchParams()
 
+  if (filters?.status) {
+    params.set('status', filters.status)
+  }
   if (filters?.search) {
     params.set('search', filters.search)
   }
@@ -28,15 +32,18 @@ export async function getPatients(filters?: PatientFilters): Promise<PatientsLis
 }
 
 export async function getPatient(id: number): Promise<Patient> {
-  return apiGet<Patient>(`${BASE_PATH}/${id}`)
+  const response = await apiGet<PatientResponse>(`${BASE_PATH}/${id}`)
+  return response.data
 }
 
 export async function createPatient(data: PatientFormData): Promise<Patient> {
-  return apiPost<Patient>(BASE_PATH, data)
+  const response = await apiPost<PatientResponse>(BASE_PATH, data)
+  return response.data
 }
 
-export async function updatePatient(id: number, data: Partial<PatientFormData>): Promise<Patient> {
-  return apiPatch<Patient>(`${BASE_PATH}/${id}`, data)
+export async function updatePatient(id: number, data: PatientFormData): Promise<Patient> {
+  const response = await apiPut<PatientResponse>(`${BASE_PATH}/${id}`, data)
+  return response.data
 }
 
 export async function deletePatient(id: number): Promise<void> {

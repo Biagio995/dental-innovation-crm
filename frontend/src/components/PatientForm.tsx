@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Save, Loader2 } from 'lucide-react'
-import type { Patient, PatientFormData } from '@/types/patient'
+import type { Patient, PatientFormData, PatientStatus } from '@/types/patient'
+import { PATIENT_STATUS_LABELS } from '@/types/patient'
 import { ApiRequestError } from '@/api/client'
 
 interface PatientFormProps {
@@ -18,6 +19,7 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
     phone: '',
     date_of_birth: '',
     notes: '',
+    status: 'active',
   })
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -31,6 +33,7 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
         phone: patient.phone || '',
         date_of_birth: patient.date_of_birth || '',
         notes: patient.notes || '',
+        status: patient.status,
       })
     }
   }, [patient])
@@ -55,12 +58,12 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
     }
   }
 
-  function handleChange(field: keyof PatientFormData, value: string) {
+  function handleChange<K extends keyof PatientFormData>(field: K, value: PatientFormData[K]) {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
         const next = { ...prev }
-        delete next[field]
+        delete next[field as string]
         return next
       })
     }
@@ -126,8 +129,8 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
           <input
             type="tel"
             id="phone"
-            value={formData.phone}
-            onChange={(e) => handleChange('phone', e.target.value)}
+            value={formData.phone || ''}
+            onChange={(e) => handleChange('phone', e.target.value || null)}
             disabled={isLoading}
             maxLength={30}
             aria-invalid={!!errors.phone}
@@ -145,8 +148,8 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
           <input
             type="email"
             id="email"
-            value={formData.email}
-            onChange={(e) => handleChange('email', e.target.value)}
+            value={formData.email || ''}
+            onChange={(e) => handleChange('email', e.target.value || null)}
             disabled={isLoading}
             aria-invalid={!!errors.email}
             aria-describedby={errors.email ? 'email-error' : undefined}
@@ -159,21 +162,41 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
         </div>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="date_of_birth">Data di nascita</label>
-        <input
-          type="date"
-          id="date_of_birth"
-          value={formData.date_of_birth}
-          onChange={(e) => handleChange('date_of_birth', e.target.value)}
-          disabled={isLoading}
-          aria-invalid={!!errors.date_of_birth}
-          aria-describedby={errors.date_of_birth ? 'date_of_birth-error' : undefined}
-        />
-        {errors.date_of_birth && (
-          <span id="date_of_birth-error" className="field-error">
-            {errors.date_of_birth[0]}
-          </span>
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="date_of_birth">Data di nascita</label>
+          <input
+            type="date"
+            id="date_of_birth"
+            value={formData.date_of_birth || ''}
+            onChange={(e) => handleChange('date_of_birth', e.target.value || null)}
+            disabled={isLoading}
+            aria-invalid={!!errors.date_of_birth}
+            aria-describedby={errors.date_of_birth ? 'date_of_birth-error' : undefined}
+          />
+          {errors.date_of_birth && (
+            <span id="date_of_birth-error" className="field-error">
+              {errors.date_of_birth[0]}
+            </span>
+          )}
+        </div>
+
+        {patient && (
+          <div className="form-group">
+            <label htmlFor="status">Stato</label>
+            <select
+              id="status"
+              value={formData.status}
+              onChange={(e) => handleChange('status', e.target.value as PatientStatus)}
+              disabled={isLoading}
+            >
+              {Object.entries(PATIENT_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -181,8 +204,8 @@ export function PatientForm({ patient, onSubmit, onCancel, isLoading = false }: 
         <label htmlFor="notes">Note</label>
         <textarea
           id="notes"
-          value={formData.notes}
-          onChange={(e) => handleChange('notes', e.target.value)}
+          value={formData.notes || ''}
+          onChange={(e) => handleChange('notes', e.target.value || null)}
           disabled={isLoading}
           rows={3}
           aria-invalid={!!errors.notes}

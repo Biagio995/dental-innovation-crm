@@ -103,6 +103,28 @@ export async function apiPost<T>(endpoint: string, body?: unknown): Promise<T> {
   return handleResponse<T>(response)
 }
 
+export async function apiPut<T>(endpoint: string, body?: unknown): Promise<T> {
+  const xsrfToken = getXsrfToken()
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'PUT',
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+  return handleResponse<T>(response)
+}
+
 export async function apiPatch<T>(endpoint: string, body?: unknown): Promise<T> {
   const xsrfToken = getXsrfToken()
   

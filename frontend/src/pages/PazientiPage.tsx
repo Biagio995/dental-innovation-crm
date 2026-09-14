@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Edit,
   Eye,
+  Filter,
   Loader2,
   Phone,
   Mail,
@@ -19,7 +20,8 @@ import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PatientForm } from '@/components/PatientForm'
 import * as patientsApi from '@/api/patients'
-import type { Patient, PatientFormData } from '@/types/patient'
+import type { Patient, PatientFormData, PatientStatus } from '@/types/patient'
+import { PATIENT_STATUS_LABELS } from '@/types/patient'
 import { ApiRequestError } from '@/api/client'
 
 export function PazientiPage() {
@@ -30,6 +32,7 @@ export function PazientiPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<PatientStatus | ''>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalPatients, setTotalPatients] = useState(0)
@@ -49,12 +52,18 @@ export function PazientiPage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  function handleStatusFilterChange(status: PatientStatus | '') {
+    setStatusFilter(status)
+    setCurrentPage(1)
+  }
+
   const loadPatients = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
       const response = await patientsApi.getPatients({
+        status: statusFilter || undefined,
         search: debouncedSearch || undefined,
         page: currentPage,
         per_page: 15,
@@ -71,7 +80,7 @@ export function PazientiPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [debouncedSearch, currentPage])
+  }, [statusFilter, debouncedSearch, currentPage])
 
   useEffect(() => {
     loadPatients()
@@ -159,6 +168,22 @@ export function PazientiPage() {
                 className="search-input"
                 aria-label="Cerca pazienti"
               />
+            </div>
+            <div className="filter-group">
+              <Filter size={16} aria-hidden="true" />
+              <select
+                value={statusFilter}
+                onChange={(e) => handleStatusFilterChange(e.target.value as PatientStatus | '')}
+                className="filter-select"
+                aria-label="Filtra per stato"
+              >
+                <option value="">Tutti gli stati</option>
+                {Object.entries(PATIENT_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
             {totalPatients > 0 && (
               <span className="results-count">

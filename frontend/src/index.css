@@ -1689,3 +1689,36 @@ select {
   color: var(--color-text-muted);
   margin-top: var(--spacing-xs);
 }
+
+/* Visits list */
+.visits-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.visit-item {
+  padding: var(--spacing-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+
+.visit-date {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
+}
+
+.visit-notes {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: var(--spacing-xs) 0;
+  white-space: pre-wrap;
+}
+
+.visit-recall {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  margin-top: var(--spacing-xs);
+}

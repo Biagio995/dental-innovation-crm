@@ -11,6 +11,7 @@ import {
   User,
   AlertCircle,
   CalendarPlus,
+  ClipboardList,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Modal } from '@/components/Modal'
@@ -18,8 +19,9 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PatientForm } from '@/components/PatientForm'
 import * as patientsApi from '@/api/patients'
 import * as appointmentsApi from '@/api/appointments'
+import * as visitsApi from '@/api/visits'
 import type { Patient, PatientFormData } from '@/types/patient'
-import type { Appointment } from '@/types/appointment'
+import type { Appointment, Visit } from '@/types/appointment'
 import { APPOINTMENT_STATUS_LABELS } from '@/types/appointment'
 import { ApiRequestError } from '@/api/client'
 
@@ -30,6 +32,7 @@ export function PatientDetailPage() {
 
   const [patient, setPatient] = useState<Patient | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [visits, setVisits] = useState<Visit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,12 +49,15 @@ export function PatientDetailPage() {
     setError(null)
 
     try {
-      const [patientData, appointmentsData] = await Promise.all([
-        patientsApi.getPatient(Number(id)),
-        appointmentsApi.getAppointments({ patient_id: Number(id) }),
+      const patientId = Number(id)
+      const [patientData, appointmentsData, visitsData] = await Promise.all([
+        patientsApi.getPatient(patientId),
+        appointmentsApi.getAppointments({ patient_id: patientId }),
+        visitsApi.getVisits({ patient_id: patientId }),
       ])
       setPatient(patientData)
       setAppointments(appointmentsData.data)
+      setVisits(visitsData.data)
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.status === 404) {
@@ -271,6 +277,32 @@ export function PatientDetailPage() {
               </ul>
             )}
           </div>
+
+          {visits.length > 0 && (
+            <div className="card">
+              <h2 className="card-title">
+                <ClipboardList size={20} />
+                Visite completate
+              </h2>
+              <ul className="visits-list">
+                {visits.map((visit) => (
+                  <li key={visit.id} className="visit-item">
+                    <div className="visit-date">
+                      {formatDateTime(visit.created_at)}
+                    </div>
+                    {visit.treatment_notes && (
+                      <p className="visit-notes">{visit.treatment_notes}</p>
+                    )}
+                    {visit.recommended_recall_date && (
+                      <div className="visit-recall">
+                        Richiamo consigliato: {formatDate(visit.recommended_recall_date)}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {!canDelete() && (

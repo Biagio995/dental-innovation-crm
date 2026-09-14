@@ -18,6 +18,21 @@ export class ApiRequestError extends Error {
   }
 }
 
+function getXsrfToken(): string | null {
+  const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
+  if (match) {
+    return decodeURIComponent(match[1])
+  }
+  return null
+}
+
+export async function fetchCsrfCookie(): Promise<void> {
+  await fetch(`${API_BASE}/sanctum/csrf-cookie`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T
@@ -65,12 +80,20 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
 }
 
 export async function apiPost<T>(endpoint: string, body?: unknown): Promise<T> {
+  const xsrfToken = getXsrfToken()
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
+  }
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
+    headers,
     credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
   })

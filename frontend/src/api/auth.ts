@@ -1,7 +1,8 @@
 import type { LoginCredentials, User } from '@/types/auth'
-import { apiGet, apiPost } from './client'
+import { apiGet, apiPost, fetchCsrfCookie } from './client'
 
 export async function login(credentials: LoginCredentials): Promise<void> {
+  await fetchCsrfCookie()
   await apiPost<void>('/api/login', credentials)
 }
 

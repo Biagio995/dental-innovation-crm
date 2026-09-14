@@ -49,6 +49,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       if (response.status === 401) {
         message = 'Sessione scaduta o credenziali non valide'
+      } else if (response.status === 403) {
+        message = 'Non hai i permessi per eseguire questa azione'
       } else if (response.status === 422) {
         message = 'Dati non validi'
       } else if (response.status === 429) {
@@ -96,6 +98,70 @@ export async function apiPost<T>(endpoint: string, body?: unknown): Promise<T> {
     headers,
     credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
+  })
+
+  return handleResponse<T>(response)
+}
+
+export async function apiPut<T>(endpoint: string, body?: unknown): Promise<T> {
+  const xsrfToken = getXsrfToken()
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'PUT',
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+  return handleResponse<T>(response)
+}
+
+export async function apiPatch<T>(endpoint: string, body?: unknown): Promise<T> {
+  const xsrfToken = getXsrfToken()
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'PATCH',
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+  return handleResponse<T>(response)
+}
+
+export async function apiDelete<T = void>(endpoint: string): Promise<T> {
+  const xsrfToken = getXsrfToken()
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  }
+  
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
   })
 
   return handleResponse<T>(response)

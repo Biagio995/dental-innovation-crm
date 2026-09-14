@@ -1722,3 +1722,317 @@ select {
   color: var(--color-primary);
   margin-top: var(--spacing-xs);
 }
+
+/* ===== Recalls, Templates, Communications ===== */
+
+/* Badge variants */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--spacing-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.badge-sm {
+  padding: 1px var(--spacing-xs);
+  font-size: 0.625rem;
+}
+
+.badge-primary {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-secondary {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-info {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Row highlight */
+.row-highlight {
+  background-color: #fffbeb !important;
+}
+
+.row-highlight:hover {
+  background-color: #fef3c7 !important;
+}
+
+/* Patient link */
+.patient-link {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.patient-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* Date cell */
+.date-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Text utilities */
+.text-small {
+  font-size: 0.875rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+/* Filter input (date) */
+.filter-input {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  background: var(--color-bg-card);
+  width: 140px;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+}
+
+.filter-separator {
+  color: var(--color-text-muted);
+}
+
+/* Channel badge */
+.channel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.channel-badge-sm {
+  font-size: 0.75rem;
+}
+
+/* Content preview */
+.content-preview {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.content-preview-cell {
+  max-width: 200px;
+}
+
+/* Status toggle */
+.status-active {
+  color: var(--color-success);
+}
+
+.status-inactive {
+  color: var(--color-text-muted);
+}
+
+/* Status icons */
+.status-icon-success {
+  color: var(--color-success);
+}
+
+.status-icon-info {
+  color: var(--color-primary);
+}
+
+.status-icon-warning {
+  color: var(--color-warning);
+}
+
+.status-icon-danger {
+  color: var(--color-error);
+}
+
+/* Status cell */
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Error hint */
+.error-hint {
+  color: var(--color-error);
+  cursor: help;
+}
+
+/* Search bar wrap variant */
+.search-bar-wrap {
+  flex-wrap: wrap;
+}
+
+/* Form styles for templates */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.form-label {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xs);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  background: var(--color-bg-card);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+}
+
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+  background-color: var(--color-bg);
+  cursor: not-allowed;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.form-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+/* Variables panel */
+.variables-panel {
+  padding: var(--spacing-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.variables-title {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.variables-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.variable-chip {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.variable-chip:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Extra small button */
+.btn-xs {
+  padding: 2px var(--spacing-xs);
+  font-size: 0.625rem;
+}
+
+/* Warning button */
+.btn-warning {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #b45309;
+}
+
+/* Alert with flex */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
